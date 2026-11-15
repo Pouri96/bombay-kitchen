@@ -1,0 +1,828 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="End-of-shift fridge check for the Bombay kitchen. Flags what is short and writes the message for the next shift.">
+<meta name="theme-color" content="#0C4A43">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Kitchen Check">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png" sizes="192x192" type="image/png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>
+:root{color-scheme:light;box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px);-webkit-text-size-adjust:100%}
+body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}
+img{max-width:100%}
+[hidden]:not([hidden="until-found"]){display:none!important}
+</style>
+<title>Bombay Kitchen Check</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mukta:wght@400;600;700;800&family=Rozha+One&display=swap">
+
+<style>
+/* Layout: one scrolling chit on a peacock-enamel field. Painted shop-sign plate at the top,
+   two brass-ruled sections of item rows, fixed thumb-reach bar that writes the message. */
+:root{
+  --field:#0C4A43;        /* enamel green ground */
+  --field-deep:#07332E;   /* sign plate, bottom bar */
+  --chit:#F6EDDD;         /* docket paper */
+  --chit-edge:#DFCEB2;
+  --on-field:#F6EDDD;     /* text on the green field, light in BOTH themes */
+  --well:#0C4A43;         /* steel-tile ground behind each food icon */
+  --ink:#241510;
+  --ink-soft:#6E5A4C;
+  --brass:#B9873B;
+  --enough:#2A7034;       /* enough left */
+  --madder:#A8322A;       /* out of stock */
+  --marigold:#E09112;     /* maybe need more */
+  --on-enough:#F6EDDD;
+  --on-madder:#FBF1E2;
+  --on-marigold:#241510;
+  --wash-enough:rgba(42,112,52,.09);
+  --wash-out:rgba(168,50,42,.09);
+  --wash-low:rgba(224,145,18,.13);
+  --report-bg:rgba(36,21,16,.05);
+  --display:"Rozha One",Georgia,"Times New Roman",serif;
+  --body:"Mukta","Segoe UI",system-ui,-apple-system,sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --target:44px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --field:#06211D; --field-deep:#030F0D;
+    --chit:#1D1510; --chit-edge:#3A2A1E; --well:#11332D; --on-field:#EFE2CE;
+    --ink:#F3E7D5; --ink-soft:#AF9B87;
+    --brass:#CFA053; --enough:#63BF6E; --madder:#DC6054; --marigold:#F0B13F;
+    --on-enough:#1D1510; --on-madder:#1D1510; --on-marigold:#1D1510;
+    --wash-enough:rgba(99,191,110,.13);
+    --wash-out:rgba(220,96,84,.13); --wash-low:rgba(240,177,63,.14);
+    --report-bg:rgba(243,231,213,.06);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --field:#06211D; --field-deep:#030F0D;
+  --chit:#1D1510; --chit-edge:#3A2A1E; --well:#11332D; --on-field:#EFE2CE;
+  --ink:#F3E7D5; --ink-soft:#AF9B87;
+  --brass:#CFA053; --enough:#63BF6E; --madder:#DC6054; --marigold:#F0B13F;
+  --on-enough:#1D1510; --on-madder:#1D1510; --on-marigold:#1D1510;
+  --wash-enough:rgba(99,191,110,.13);
+  --wash-out:rgba(220,96,84,.13); --wash-low:rgba(240,177,63,.14);
+  --report-bg:rgba(243,231,213,.06);
+  color-scheme:dark;
+}
+@media (pointer: coarse){ :root{ --target:48px } }
+
+*{box-sizing:border-box}
+body{
+  background:var(--field); color:var(--on-field);
+  font:400 1rem/1.5 var(--body);
+  overflow-wrap:anywhere;
+  padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:1.25rem 0;
+}
+.wrap{max-width:62rem;margin-inline:auto;padding-bottom:calc(6.5rem + env(safe-area-inset-bottom,0px))}
+h1,h2,h3{text-wrap:balance;margin:0}
+p{text-wrap:pretty;margin:0}
+:where(button){font:inherit;cursor:pointer;color:inherit}
+:where(button,input,a){min-block-size:var(--target)}
+:where(button,input):focus-visible,a:focus-visible{outline:3px solid var(--marigold);outline-offset:2px}
+
+/* ── painted shop sign ──────────────────────────────── */
+.sign{
+  background:var(--field-deep);
+  border:3px double var(--brass);
+  border-radius:6px;
+  padding:1.15rem 1rem 1rem;
+  text-align:center;
+  box-shadow:inset 0 0 0 1px rgba(185,135,59,.3);
+}
+.sign h1{
+  font:400 clamp(2.1rem,11vw,3.4rem)/.95 var(--display);
+  color:var(--marigold);
+  letter-spacing:.17em;
+  text-indent:.17em;
+}
+.sign .tag{
+  font:700 .74rem/1 var(--body);
+  letter-spacing:.26em;text-indent:.26em;
+  color:var(--brass);
+  margin-top:.5rem;
+}
+.sign .tag::before,.sign .tag::after{content:"\2022";margin-inline:.6em;color:var(--brass)}
+
+/* ── sections ───────────────────────────────────────── */
+.cols{display:grid;gap:2rem;margin-top:2rem}
+@media (min-width:62rem){ .cols{grid-template-columns:1fr 1fr;gap:2rem 1.75rem;align-items:start} }
+
+.sec-rule{height:5px;border-top:2px solid var(--brass);border-bottom:1px solid var(--brass);margin-bottom:.7rem}
+.sec-top{display:flex;flex-wrap:wrap;align-items:baseline;gap:.25rem .75rem}
+.sec-top h2{font:400 clamp(1.5rem,6vw,1.95rem)/1 var(--display);color:var(--on-field);letter-spacing:.01em}
+.sec-count{
+  font:800 .72rem/1 var(--body);letter-spacing:.14em;
+  color:var(--field-deep);background:var(--brass);
+  padding:.38rem .55rem;border-radius:3px;font-variant-numeric:tabular-nums;white-space:nowrap;
+}
+.sec-count[data-zero="true"]{background:transparent;color:var(--brass);box-shadow:inset 0 0 0 1.5px var(--brass)}
+.sec-sub{color:var(--brass);font-size:.92rem;margin-top:.3rem}
+.list{list-style:none;margin:.9rem 0 0;padding:0;display:grid;gap:.6rem}
+
+/* ── item chit ──────────────────────────────────────── */
+.chit{
+  container:chit / inline-size;
+  background:var(--chit);
+  border:2px solid var(--chit-edge);
+  border-radius:6px;
+  padding:.6rem;
+  display:grid;gap:.55rem;
+}
+.row{display:flex;align-items:center;gap:.75rem;min-width:0}
+.well{
+  flex:none;width:56px;height:56px;
+  background:var(--well);
+  border:1.5px solid var(--brass);
+  border-radius:14px;
+  display:grid;place-items:center;overflow:hidden;
+}
+.well svg{width:52px;height:52px;display:block}
+.name{font:700 1.0625rem/1.2 var(--body);color:var(--ink);min-width:0;flex:1 1 auto}
+.acts{display:grid;gap:.5rem;grid-template-columns:1fr 1fr;grid-template-areas:"enough enough" "out low"}
+.act.enough{grid-area:enough}
+.act.out{grid-area:out}
+.act.low{grid-area:low}
+.act{
+  min-height:var(--target);padding:.5rem .4rem;
+  font:800 .74rem/1.15 var(--body);letter-spacing:.03em;text-transform:uppercase;
+  background:var(--chit);color:var(--ink-soft);
+  border:2px solid var(--chit-edge);border-radius:4px;
+  transition:background .12s,color .12s,border-color .12s;
+}
+.act.enough[aria-pressed="false"]:hover{border-color:var(--enough);color:var(--enough)}
+.act.out[aria-pressed="false"]:hover{border-color:var(--madder);color:var(--madder)}
+.act.low[aria-pressed="false"]:hover{border-color:var(--marigold);color:var(--ink)}
+.act[aria-pressed="true"]{box-shadow:inset 0 0 0 2px var(--chit),inset 0 0 0 3.5px currentColor}
+.act.enough[aria-pressed="true"]{background:var(--enough);border-color:var(--enough);color:var(--on-enough)}
+.act.out[aria-pressed="true"]{background:var(--madder);border-color:var(--madder);color:var(--on-madder)}
+.act.low[aria-pressed="true"]{background:var(--marigold);border-color:var(--marigold);color:var(--on-marigold)}
+
+@container chit (inline-size > 24rem){
+  .acts{grid-template-columns:1fr 1fr 1fr;grid-template-areas:"enough out low"}
+}
+
+/* dashed edge = not answered yet, so unchecked rows are visible while scrolling */
+.chit[data-state="todo"]{border-style:dashed;border-color:var(--brass)}
+.chit[data-state="enough"]{border-color:var(--enough);background:linear-gradient(var(--wash-enough),var(--wash-enough)),var(--chit)}
+.chit[data-state="enough"] .act.out,.chit[data-state="enough"] .act.low{opacity:.4}
+.chit[data-state="out"]{border-color:var(--madder);background:linear-gradient(var(--wash-out),var(--wash-out)),var(--chit)}
+.chit[data-state="out"] .act.enough,.chit[data-state="out"] .act.low{opacity:.4}
+.chit[data-state="low"]{border-color:var(--marigold);background:linear-gradient(var(--wash-low),var(--wash-low)),var(--chit)}
+.chit[data-state="low"] .act.enough,.chit[data-state="low"] .act.out{opacity:.4}
+
+@keyframes nudge{
+  0%,100%{transform:translateX(0)}
+  20%{transform:translateX(-6px)} 40%{transform:translateX(6px)}
+  60%{transform:translateX(-3px)} 80%{transform:translateX(3px)}
+}
+.chit.nudge{animation:nudge .45s}
+@media (prefers-reduced-motion: reduce){
+  .chit.nudge{animation:none;box-shadow:0 0 0 3px var(--marigold)}
+}
+
+@keyframes land{
+  0%{transform:scale(.88) rotate(-3deg)}
+  55%{transform:scale(1.05) rotate(1deg)}
+  100%{transform:scale(1) rotate(0)}
+}
+.act.landed{animation:land .26s cubic-bezier(.2,.85,.25,1)}
+@media (prefers-reduced-motion: reduce){ .act.landed{animation:none} }
+
+/* ── bottom bar ─────────────────────────────────────── */
+.bar{
+  position:fixed;inset:auto 0 0;z-index:20;
+  background:var(--field-deep);
+  border-top:3px double var(--brass);
+  display:flex;align-items:center;gap:.75rem;
+  padding-block:.7rem;
+  padding-bottom:max(.7rem,env(safe-area-inset-bottom,0px));
+  padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px));
+}
+.bar-in{max-width:62rem;margin-inline:auto;width:100%;display:flex;align-items:center;gap:.75rem}
+#tally{flex:1 1 auto;min-width:0;font:700 .95rem/1.25 var(--body);color:var(--brass);font-variant-numeric:tabular-nums}
+#tally b{color:var(--on-field);font-weight:800}
+.go{
+  flex:none;background:var(--marigold);color:var(--on-marigold);
+  border:2px solid var(--marigold);border-radius:4px;
+  padding:.6rem 1rem;font:800 .85rem/1.1 var(--body);
+  letter-spacing:.07em;text-transform:uppercase;
+}
+.go:hover{background:var(--brass);border-color:var(--brass)}
+.go[data-ready="false"]{background:transparent;color:var(--brass);border-color:var(--brass)}
+.go[data-ready="false"]:hover{background:var(--brass);color:var(--field-deep)}
+
+/* ── message sheet ──────────────────────────────────── */
+dialog{
+  border:0;padding:0;background:transparent;max-width:min(40rem,100%);width:100%;
+  color:var(--ink);
+}
+dialog::backdrop{background:rgba(4,22,19,.72)}
+.sheet{
+  background:var(--chit);border:3px double var(--brass);border-radius:6px;
+  padding:1.1rem;display:grid;gap:.9rem;
+  max-height:92dvh;overflow-y:auto;
+}
+.sheet h2{font:400 1.6rem/1 var(--display);color:var(--ink)}
+.sheet-head{display:flex;align-items:center;gap:.75rem}
+.x{flex:none;margin-left:auto;width:var(--target);height:var(--target);background:none;border:2px solid var(--chit-edge);border-radius:4px;color:var(--ink-soft);font-size:1.15rem;line-height:1}
+/* one block per list, each copied on its own */
+.block{display:grid;gap:.5rem;border-top:2px solid var(--brass);padding-top:.8rem}
+.block-top{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap}
+.block-top h3{font:400 1.25rem/1 var(--display);color:var(--ink);flex:1 1 auto;min-width:0}
+.tip{flex:none;font:700 .78rem/1 var(--body);color:var(--enough);opacity:0;transition:opacity .15s}
+.tip:not(:empty){opacity:1}
+.rep{
+  font:400 .875rem/1.6 var(--mono);color:var(--ink);
+  background:var(--report-bg);border:1px solid var(--chit-edge);border-radius:4px;
+  padding:.85rem;margin:0;white-space:pre-wrap;max-height:28vh;overflow:auto;
+}
+.sheet-acts{display:flex;flex-wrap:wrap;gap:.55rem}
+.sheet-acts > *{flex:1 1 9rem;min-width:0}
+.btn{
+  display:flex;align-items:center;justify-content:center;gap:.4rem;text-align:center;
+  min-height:var(--target);padding:.55rem .9rem;border-radius:4px;
+  font:800 .8rem/1.15 var(--body);letter-spacing:.06em;text-transform:uppercase;
+  text-decoration:none;border:2px solid var(--ink);background:var(--chit);color:var(--ink);
+}
+.btn.copy{flex:none;background:var(--field);border-color:var(--field);color:var(--on-field)}
+.btn.copy:hover{background:var(--field-deep);border-color:var(--field-deep)}
+.btn.quiet{border-color:var(--chit-edge);color:var(--ink-soft)}
+#said{font:700 .85rem/1.3 var(--body);color:var(--ink-soft);min-height:1.3em}
+.sprite{position:absolute;width:0;height:0;overflow:hidden}
+</style>
+</head>
+<body>
+<svg class="sprite" aria-hidden="true" focusable="false"><defs>
+  <g id="g-hen">
+    <path d="M8.3 6.1c.7-1.8 2-1.7 2.6 0 .8-1.8 2.1-1.6 2.6.2.6-1.5 1.9-1.2 2.1.5" fill="none" stroke="#C9342A" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="12" cy="13" r="6.6" fill="#F6EDDD"/>
+    <path d="M18.1 11.6 23.4 13.2 18.1 15.1Z" fill="#E09112"/>
+    <path d="M15.4 17.6c1.7-.2 2.5 1.2 1.6 2.4-.9 1.2-2.7.6-2.8-.8Z" fill="#C9342A"/>
+    <circle cx="14.6" cy="11.5" r="1.5" fill="#241510"/>
+  </g>
+  <g id="g-lamb">
+    <circle cx="8.4" cy="8.6" r="4.3" fill="#F6EDDD"/>
+    <circle cx="15.6" cy="8.6" r="4.3" fill="#F6EDDD"/>
+    <circle cx="12" cy="6" r="4.3" fill="#F6EDDD"/>
+    <ellipse cx="5.2" cy="13.4" rx="2.8" ry="1.8" transform="rotate(-24 5.2 13.4)" fill="#C9AF99"/>
+    <ellipse cx="18.8" cy="13.4" rx="2.8" ry="1.8" transform="rotate(24 18.8 13.4)" fill="#C9AF99"/>
+    <ellipse cx="12" cy="14.4" rx="5" ry="5.6" fill="#8D7563"/>
+    <circle cx="10.1" cy="13.2" r="1.25" fill="#241510"/>
+    <circle cx="13.9" cy="13.2" r="1.25" fill="#241510"/>
+    <ellipse cx="12" cy="17.6" rx="2.5" ry="1.8" fill="#C9AF99"/>
+    <path d="M11.1 17.3h1.8" stroke="#241510" stroke-width="1.1" stroke-linecap="round"/>
+  </g>
+  <g id="g-leaf">
+    <path d="M12.4 2.6c7 3.6 9.3 10.2 6.3 17.6C11.2 19.6 7.2 14 8.3 7Z" fill="#8DBF4A"/>
+    <path d="M9.8 19.6C12.3 13.2 15.3 8.8 18.2 4.9" fill="none" stroke="#2F5B22" stroke-width="2" stroke-linecap="round"/>
+  </g>
+  <g id="g-badge-ring">
+    <circle cx="37" cy="11" r="9.4" fill="#07332E"/>
+    <circle cx="37" cy="11" r="9.4" fill="none" stroke="#B9873B" stroke-width="1.6"/>
+  </g>
+  <g id="g-karahi">
+    <ellipse cx="4.6" cy="19.6" rx="3.2" ry="2.3" fill="#7F8D94"/>
+    <ellipse cx="43.4" cy="19.6" rx="3.2" ry="2.3" fill="#7F8D94"/>
+    <path d="M7 20c0 9.4 7.6 17 17 17s17-7.6 17-17Z" fill="#96A3AA"/>
+    <ellipse cx="24" cy="20" rx="17" ry="6" fill="#C6D1D6"/>
+  </g>
+
+  <symbol id="i-butter-chicken" viewBox="0 0 48 48">
+    <use href="#g-karahi"/>
+    <ellipse cx="24" cy="20" rx="13.6" ry="4.2" fill="#E8832A"/>
+    <path d="M14.6 21.3c3.1-2.6 7.6-2.6 10.7 0" fill="none" stroke="#FAEAD1" stroke-width="2.4" stroke-linecap="round"/>
+    <rect x="26.2" y="17.4" width="5.6" height="3.7" rx="1.1" fill="#FFF1CC"/>
+    <use href="#g-badge-ring"/>
+    <use href="#g-hen" transform="translate(27.6 2.4) scale(.78)"/>
+  </symbol>
+
+  <symbol id="i-chicken-madras" viewBox="0 0 48 48">
+    <use href="#g-karahi"/>
+    <ellipse cx="24" cy="20" rx="13.6" ry="4.2" fill="#8E2219"/>
+    <path d="M12.6 17.8c3.8 1 7.2 2.7 9.9 4.8" fill="none" stroke="#C9342A" stroke-width="3.1" stroke-linecap="round"/>
+    <path d="M25.6 22.3c2.3-1.9 4.9-3.3 7.8-4.2" fill="none" stroke="#D8453A" stroke-width="3.1" stroke-linecap="round"/>
+    <path d="M12.1 17.6 10.4 16" fill="none" stroke="#4E7B3A" stroke-width="2.2" stroke-linecap="round"/>
+    <path d="M33.9 18 35.6 16.4" fill="none" stroke="#4E7B3A" stroke-width="2.2" stroke-linecap="round"/>
+    <use href="#g-badge-ring"/>
+    <use href="#g-hen" transform="translate(27.6 2.4) scale(.78)"/>
+  </symbol>
+
+  <symbol id="i-veggie-curry" viewBox="0 0 48 48">
+    <use href="#g-karahi"/>
+    <ellipse cx="24" cy="20" rx="13.6" ry="4.2" fill="#4E7B3A"/>
+    <path d="M13.4 17.6 19.6 19.8 13.8 22.3Z" fill="#E07A1F"/>
+    <circle cx="23.4" cy="21.1" r="2.3" fill="#8DBF4A"/>
+    <circle cx="28.2" cy="18.6" r="2" fill="#A7D063"/>
+    <circle cx="31.2" cy="21.5" r="2.2" fill="#DCE8C4"/>
+    <use href="#g-badge-ring"/>
+    <use href="#g-leaf" transform="translate(28.4 2) scale(.78)"/>
+  </symbol>
+
+  <symbol id="i-chole" viewBox="0 0 48 48">
+    <path d="M9 22c0 8.3 6.7 15 15 15s15-6.7 15-15Z" fill="#96A3AA"/>
+    <ellipse cx="24" cy="22" rx="15" ry="5.4" fill="#C6D1D6"/>
+    <ellipse cx="24" cy="22" rx="12" ry="3.8" fill="#7A4D22"/>
+    <circle cx="16.6" cy="21.3" r="3.1" fill="#DBB36C"/>
+    <circle cx="23" cy="19.4" r="3.1" fill="#E4C184"/>
+    <circle cx="29.6" cy="21.1" r="3.1" fill="#DBB36C"/>
+    <circle cx="20" cy="23.6" r="2.7" fill="#C89F58"/>
+    <circle cx="27" cy="23.8" r="2.7" fill="#C89F58"/>
+    <path d="M15.6 20.6a1.4 1.4 0 0 1 1.9-.5" fill="none" stroke="#B08A45" stroke-width="1.1" stroke-linecap="round"/>
+    <path d="M22 18.7a1.4 1.4 0 0 1 1.9-.5" fill="none" stroke="#B08A45" stroke-width="1.1" stroke-linecap="round"/>
+    <path d="M14 11.6c2.1-1.7 1-3.1 2.4-4.9" fill="none" stroke="#9FD6CC" stroke-width="2" stroke-linecap="round" opacity=".6"/>
+    <path d="M32 11.6c2.1-1.7 1-3.1 2.4-4.9" fill="none" stroke="#9FD6CC" stroke-width="2" stroke-linecap="round" opacity=".6"/>
+  </symbol>
+
+  <symbol id="i-chopped-onion" viewBox="0 0 48 48">
+    <rect x="3" y="31.5" width="42" height="5.6" rx="2.4" fill="#8A6442"/>
+    <path d="M16.4 20.6c.7-2.6 1.9-3.9 3.6-4.2" fill="none" stroke="#6E8C3E" stroke-width="2.4" stroke-linecap="round"/>
+    <path d="M7.4 31.5a10.6 10.6 0 0 1 21.2 0Z" fill="#9C4F86"/>
+    <path d="M11.6 31.5a6.4 6.4 0 0 1 12.8 0" fill="none" stroke="#E7CCE1" stroke-width="2.2"/>
+    <path d="M15.4 31.5a2.6 2.6 0 0 1 5.2 0" fill="none" stroke="#E7CCE1" stroke-width="2.2"/>
+    <rect x="30" y="25.4" width="6" height="6" rx="1.3" fill="#C98EB8"/>
+    <rect x="37.4" y="25.4" width="6" height="6" rx="1.3" fill="#9C4F86"/>
+    <rect x="33.6" y="18.2" width="6" height="6" rx="1.3" fill="#E7CCE1"/>
+  </symbol>
+
+  <symbol id="i-chopped-paprika" viewBox="0 0 48 48">
+    <rect x="3" y="31.5" width="42" height="5.6" rx="2.4" fill="#8A6442"/>
+    <path d="M19.4 12.8V9.6" fill="none" stroke="#4E7B3A" stroke-width="3.1" stroke-linecap="round"/>
+    <path d="M16 9.8h7" fill="none" stroke="#4E7B3A" stroke-width="2.6" stroke-linecap="round"/>
+    <path d="M15.4 13.6c2.6-1.7 6.2-1.7 8.8 0 3.4.8 5.3 3.8 5.3 8.1 0 6.1-3.7 10.2-9.7 10.2S9.8 27.8 9.8 21.7c0-4.3 2-7.3 5.6-8.1Z" fill="#C9342A"/>
+    <path d="M13.6 17.6c-.9 1.6-1.3 3.3-1.3 5.2" fill="none" stroke="#DE5B4F" stroke-width="2.1" stroke-linecap="round"/>
+    <rect x="31.4" y="19.8" width="4.1" height="11.7" rx="2" fill="#D8453A"/>
+    <rect x="36.6" y="22.2" width="4.1" height="9.3" rx="2" fill="#E0564B"/>
+    <rect x="41.6" y="24.4" width="3.4" height="7.1" rx="1.7" fill="#8DBF4A"/>
+  </symbol>
+
+  <symbol id="i-rice" viewBox="0 0 48 48">
+    <path d="M20.4 13.4c2.1-1.8 1-3.2 2.4-5" fill="none" stroke="#9FD6CC" stroke-width="2.1" stroke-linecap="round" opacity=".7"/>
+    <path d="M28 13.4c2.1-1.8 1-3.2 2.4-5" fill="none" stroke="#9FD6CC" stroke-width="2.1" stroke-linecap="round" opacity=".7"/>
+    <ellipse cx="24" cy="32" rx="19" ry="6.6" fill="#8E9BA1"/>
+    <ellipse cx="24" cy="30.6" rx="19" ry="6.6" fill="#C6D1D6"/>
+    <path d="M10.6 30.6c.8-7.5 6.2-12 13.4-12s12.6 4.5 13.4 12Z" fill="#F7EFE0"/>
+    <ellipse cx="18" cy="25.4" rx="2.7" ry="1.35" transform="rotate(-26 18 25.4)" fill="#FFFFFF"/>
+    <ellipse cx="25" cy="22.6" rx="2.7" ry="1.35" transform="rotate(12 25 22.6)" fill="#FFFFFF"/>
+    <ellipse cx="31" cy="26" rx="2.7" ry="1.35" transform="rotate(36 31 26)" fill="#FFFFFF"/>
+    <ellipse cx="22.4" cy="28.6" rx="2.7" ry="1.35" transform="rotate(-8 22.4 28.6)" fill="#FFFFFF"/>
+  </symbol>
+
+  <symbol id="i-mango-lassi" viewBox="0 0 48 48">
+    <path d="M29.8 9.4 35.6 3.2" fill="none" stroke="#C9342A" stroke-width="3.4" stroke-linecap="round"/>
+    <path d="M15 10.4h18l-2.5 28.4a3.4 3.4 0 0 1-3.4 3h-6.2a3.4 3.4 0 0 1-3.4-3Z" fill="#D9E6EA" opacity=".5"/>
+    <path d="M16.6 14.6h14.8l-2.1 24.1a2 2 0 0 1-2 1.8h-6.6a2 2 0 0 1-2-1.8Z" fill="#F4C23C"/>
+    <path d="M17.4 20.6h13.2" fill="none" stroke="#FBE4A3" stroke-width="2" stroke-linecap="round" opacity=".8"/>
+    <rect x="13.6" y="8" width="20.8" height="3.2" rx="1.6" fill="#C6D1D6"/>
+    <path d="M34.2 11.6c3.6-.7 6 1.3 6 4.5 0 2.8-2.1 4.7-4.9 4.3-1.7-.2-2.8-1.7-2.6-3.6Z" fill="#F0902A"/>
+    <path d="M35.2 13.8c1.6.2 2.6 1.3 2.8 2.9" fill="none" stroke="#FBD9A8" stroke-width="1.6" stroke-linecap="round"/>
+  </symbol>
+
+  <symbol id="i-mango-chutney" viewBox="0 0 48 48">
+    <rect x="11.6" y="13.4" width="24.8" height="26.2" rx="4" fill="#E8A62A"/>
+    <path d="M18.6 23.2c4.8-2.2 9.1.7 9.1 5.9 0 5-4.1 8.2-8 6.7-2.6-1-3.7-3.7-2.8-6.8" fill="#DD6F1C"/>
+    <circle cx="29.4" cy="20.6" r="2.6" fill="#F3C25C"/>
+    <circle cx="16.4" cy="20.2" r="2" fill="#F3C25C"/>
+    <rect x="11.6" y="13.4" width="24.8" height="26.2" rx="4" fill="none" stroke="#C6D1D6" stroke-width="2.6"/>
+    <rect x="9.4" y="8.2" width="29.2" height="6.8" rx="2.4" fill="#A8322A"/>
+    <rect x="9.4" y="8.2" width="29.2" height="2.6" rx="1.3" fill="#C44236"/>
+  </symbol>
+
+  <symbol id="i-pickled-onion" viewBox="0 0 48 48">
+    <rect x="13.4" y="12.6" width="21.2" height="27.4" rx="3.6" fill="#F2B7C9"/>
+    <ellipse cx="24" cy="19.4" rx="7.2" ry="2.7" fill="none" stroke="#CF4F76" stroke-width="2.4"/>
+    <ellipse cx="21.8" cy="26.4" rx="7.2" ry="2.7" fill="none" stroke="#D7577E" stroke-width="2.4"/>
+    <ellipse cx="25.6" cy="33.4" rx="7.2" ry="2.7" fill="none" stroke="#CF4F76" stroke-width="2.4"/>
+    <rect x="13.4" y="12.6" width="21.2" height="27.4" rx="3.6" fill="none" stroke="#C6D1D6" stroke-width="2.6"/>
+    <rect x="11.2" y="7.4" width="25.6" height="6.4" rx="2.3" fill="#0C7A68"/>
+    <rect x="11.2" y="7.4" width="25.6" height="2.4" rx="1.2" fill="#15A08A"/>
+  </symbol>
+
+  <symbol id="i-naan" viewBox="0 0 48 48">
+    <path d="M24 5.6c9.6 0 16.8 5.5 16.8 12.9 0 8.7-6.7 15.3-12.6 22.7a5.3 5.3 0 0 1-8.4 0C13.9 33.8 7.2 27.2 7.2 18.5 7.2 11.1 14.4 5.6 24 5.6Z" fill="#EDD9AE"/>
+    <ellipse cx="17.6" cy="15" rx="3.1" ry="2.3" fill="#B08A4E"/>
+    <ellipse cx="29.4" cy="19.4" rx="2.7" ry="2" fill="#A87F45"/>
+    <ellipse cx="21.6" cy="26.6" rx="2.5" ry="1.9" fill="#B08A4E"/>
+    <ellipse cx="27.4" cy="32.6" rx="2.1" ry="1.6" fill="#A87F45"/>
+    <path d="M13.4 12.4c2.8-2.7 6.4-4.1 10.6-4.3" fill="none" stroke="#F9EDCC" stroke-width="2.7" stroke-linecap="round"/>
+    <path d="M23 21.6c.8 2.4.6 4.8-.6 7.2" fill="none" stroke="#DCC291" stroke-width="1.8" stroke-linecap="round"/>
+  </symbol>
+
+  <symbol id="i-vada-pav" viewBox="0 0 48 48">
+    <path d="M9 24.4h30v8.2a4.6 4.6 0 0 1-4.6 4.6H13.6A4.6 4.6 0 0 1 9 32.6Z" fill="#D59E52"/>
+    <circle cx="24" cy="22.4" r="7.8" fill="#B5802F"/>
+    <circle cx="24" cy="22.4" r="4.6" fill="#D9A84E"/>
+    <path d="M10.6 20.8h26.8" fill="none" stroke="#4E7B3A" stroke-width="2.6" stroke-linecap="round"/>
+    <path d="M13.6 8.6h20.8A4.6 4.6 0 0 1 39 13.2v6.4H9v-6.4a4.6 4.6 0 0 1 4.6-4.6Z" fill="#E6B96F"/>
+    <ellipse cx="17.8" cy="12.6" rx="1.7" ry="1.1" fill="#F7E6BC"/>
+    <ellipse cx="24.6" cy="11.2" rx="1.7" ry="1.1" fill="#F7E6BC"/>
+    <ellipse cx="31.2" cy="13" rx="1.7" ry="1.1" fill="#F7E6BC"/>
+  </symbol>
+
+  <symbol id="i-aloo-tikki" viewBox="0 0 48 48">
+    <ellipse cx="36.8" cy="13.6" rx="7.6" ry="5.7" transform="rotate(-18 36.8 13.6)" fill="#B98A54"/>
+    <circle cx="34.6" cy="12.6" r="1.15" fill="#8A6236"/>
+    <circle cx="39" cy="15.4" r="1.05" fill="#8A6236"/>
+    <circle cx="38.2" cy="11" r=".95" fill="#8A6236"/>
+    <ellipse cx="20.4" cy="28.4" rx="14.6" ry="10.2" fill="#C08A3A"/>
+    <ellipse cx="20.4" cy="26.4" rx="14.6" ry="10.2" fill="#E8B964"/>
+    <path d="M8.6 23c2.1-2.6 5.2-3.9 8.4-3.9" fill="none" stroke="#F6DCA6" stroke-width="2.3" stroke-linecap="round"/>
+    <ellipse cx="17.4" cy="25.4" rx="2.4" ry="1.7" fill="#C08A3A"/>
+    <ellipse cx="25.6" cy="28.6" rx="2.1" ry="1.5" fill="#C08A3A"/>
+    <ellipse cx="22.4" cy="22.6" rx="1.9" ry="1.3" fill="#C08A3A"/>
+  </symbol>
+
+  <symbol id="i-chicken-samosa" viewBox="0 0 48 48">
+    <path d="M19.9 10.1c.7-1.3 2.5-1.3 3.2 0l13.2 26.7c.9 1.9-.4 4.2-2.5 4.2H9.2c-2.1 0-3.4-2.3-2.5-4.2Z" fill="#E0A854"/>
+    <path d="M21.5 11.4V40" fill="none" stroke="#C08A3A" stroke-width="2.2"/>
+    <path d="M12.4 32.4h18.4" fill="none" stroke="#C08A3A" stroke-width="1.8" opacity=".65"/>
+    <ellipse cx="16.4" cy="26.8" rx="2.3" ry="1.6" fill="#C9933D"/>
+    <ellipse cx="27" cy="31.4" rx="2" ry="1.5" fill="#C9933D"/>
+    <use href="#g-badge-ring"/>
+    <use href="#g-hen" transform="translate(27.6 2.4) scale(.78)"/>
+  </symbol>
+
+  <symbol id="i-lamb-samosa" viewBox="0 0 48 48">
+    <path d="M19.9 10.1c.7-1.3 2.5-1.3 3.2 0l13.2 26.7c.9 1.9-.4 4.2-2.5 4.2H9.2c-2.1 0-3.4-2.3-2.5-4.2Z" fill="#E0A854"/>
+    <path d="M21.5 11.4V40" fill="none" stroke="#C08A3A" stroke-width="2.2"/>
+    <path d="M12.4 32.4h18.4" fill="none" stroke="#C08A3A" stroke-width="1.8" opacity=".65"/>
+    <ellipse cx="16.4" cy="26.8" rx="2.3" ry="1.6" fill="#C9933D"/>
+    <ellipse cx="27" cy="31.4" rx="2" ry="1.5" fill="#C9933D"/>
+    <use href="#g-badge-ring"/>
+    <use href="#g-lamb" transform="translate(27.6 2) scale(.78)"/>
+  </symbol>
+
+  <symbol id="i-veggie-samosa" viewBox="0 0 48 48">
+    <path d="M19.9 10.1c.7-1.3 2.5-1.3 3.2 0l13.2 26.7c.9 1.9-.4 4.2-2.5 4.2H9.2c-2.1 0-3.4-2.3-2.5-4.2Z" fill="#E0A854"/>
+    <path d="M21.5 11.4V40" fill="none" stroke="#C08A3A" stroke-width="2.2"/>
+    <path d="M12.4 32.4h18.4" fill="none" stroke="#C08A3A" stroke-width="1.8" opacity=".65"/>
+    <ellipse cx="16.4" cy="26.8" rx="2.3" ry="1.6" fill="#C9933D"/>
+    <ellipse cx="27" cy="31.4" rx="2" ry="1.5" fill="#C9933D"/>
+    <use href="#g-badge-ring"/>
+    <use href="#g-leaf" transform="translate(28.4 2) scale(.78)"/>
+  </symbol>
+
+  <symbol id="i-pakora" viewBox="0 0 48 48">
+    <ellipse cx="24" cy="36.4" rx="17.6" ry="5" fill="#8E9BA1"/>
+    <ellipse cx="24" cy="35.2" rx="17.6" ry="5" fill="#C6D1D6"/>
+    <path d="M9.4 22.6c1.8-4.6 7.4-5.6 9.8-1.4 3.3-1.4 5.8 1.7 4.6 5.3-1.1 3.4-5.6 5.6-9.2 3.4-3.6-2.1-6.6-4-5.2-7.3Z" fill="#D9A54E"/>
+    <path d="M27.2 14.2c3.3-3.4 8.9-2.1 9.8 2.3.9 4.4-1.6 7.7-5.8 7.4-4.2-.3-7.5-2.4-7.2-5.4.2-2 1.4-3.3 3.2-4.3Z" fill="#E8B964"/>
+    <path d="M18.2 31.4c3.4-4.6 10-3.6 12.2.8 2.2 4.4-1.8 8.4-6.2 8.4-4.8 0-9.4-4.4-6-9.2Z" fill="#CE9A43"/>
+    <path d="M12.6 22.4c-.6 1.6-.5 3.1.3 4.5" fill="none" stroke="#F2CE8C" stroke-width="2" stroke-linecap="round"/>
+    <path d="M30.4 17c-.8 1.4-.9 2.9-.3 4.3" fill="none" stroke="#F6DCA6" stroke-width="2" stroke-linecap="round"/>
+    <path d="M31.6 29.6c3.2 1 5.9 3.1 7.2 5.8" fill="none" stroke="#4E7B3A" stroke-width="2.6" stroke-linecap="round"/>
+    <circle cx="22.4" cy="35" r="1.5" fill="#A87F45"/>
+    <circle cx="27.4" cy="33.4" r="1.3" fill="#A87F45"/>
+  </symbol>
+
+</defs></svg>
+
+<div class="wrap">
+  <header class="sign">
+    <h1>BOMBAY</h1>
+    <p class="tag">Kitchen check</p>
+  </header>
+
+  <main class="cols" id="cols"></main>
+</div>
+
+<div class="bar">
+  <div class="bar-in">
+    <p id="tally" role="status">Nothing to report yet</p>
+    <button class="go" id="write" type="button">Write the message</button>
+  </div>
+</div>
+
+<dialog id="sheet" closedby="any" aria-labelledby="sheet-title">
+  <div class="sheet">
+    <div class="sheet-head">
+      <h2 id="sheet-title">Message</h2>
+      <button class="x" id="close" type="button" aria-label="Close">&#10005;</button>
+    </div>
+    <section class="block">
+      <div class="block-top">
+        <h3 id="h-todo">Morning todo</h3>
+        <span class="tip" id="tip-todo" role="status"></span>
+        <button class="btn copy" id="copy-todo" type="button" aria-label="Copy the morning todo message">Copy</button>
+      </div>
+      <pre class="rep" id="rep-todo"></pre>
+    </section>
+
+    <section class="block">
+      <div class="block-top">
+        <h3 id="h-inv">Inventory</h3>
+        <span class="tip" id="tip-inv" role="status"></span>
+        <button class="btn copy" id="copy-inv" type="button" aria-label="Copy the inventory message">Copy</button>
+      </div>
+      <pre class="rep" id="rep-inv"></pre>
+    </section>
+
+    <div class="sheet-acts">
+      <button class="btn quiet" id="reset" type="button">Start a new check</button>
+    </div>
+    <p id="said" role="status"></p>
+  </div>
+</dialog>
+
+<script>
+(function(){
+  "use strict";
+
+  var LISTS = [
+    { id:"todo", title:"Morning todo", sub:"Cook and prep before tomorrow's service",
+      reportTitle:"MORNING TODO",
+      items:[
+        {id:"butter-chicken",   name:"Butter Chicken"},
+        {id:"chicken-madras",  name:"Chicken Madras"},
+        {id:"veggie-curry",    name:"Veggie Curry"},
+        {id:"chole",           name:"Chole"},
+        {id:"chopped-onion",   name:"Chopped Onion"},
+        {id:"chopped-paprika", name:"Chopped Paprika"},
+        {id:"rice",            name:"Rice"},
+        {id:"mango-lassi",     name:"Mango Lassi"},
+        {id:"mango-chutney",   name:"Mango Chutney"},
+        {id:"pickled-onion",   name:"Pickled Onion"}
+      ]},
+    { id:"inv", title:"Inventory", sub:"Bring up to the kitchen",
+      reportTitle:"INVENTORY",
+      items:[
+        {id:"naan",            name:"Naan"},
+        {id:"vada-pav",        name:"Vada Pav"},
+        {id:"aloo-tikki",      name:"Aloo Tikki"},
+        {id:"chicken-samosa",  name:"Chicken Samosa"},
+        {id:"lamb-samosa",     name:"Lamb Samosa"},
+        {id:"veggie-samosa",   name:"Veggie Samosa"},
+        {id:"pakora",          name:"Pakora"}
+      ]}
+  ];
+
+  var WORDS = { out:"OUT OF STOCK", low:"MAYBE NEED MORE" };
+  var KEY = "bombay-kitchen-check-v2";
+  var marks = {};
+  var TOTAL = LISTS.reduce(function (n, l) { return n + l.items.length; }, 0);
+  var CALM = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  try {
+    var raw = localStorage.getItem(KEY);
+    if (raw) {
+      var saved = JSON.parse(raw);
+      if (saved && typeof saved === "object" && saved.marks && typeof saved.marks === "object") {
+        marks = saved.marks;
+      }
+    }
+  } catch (e) { marks = {}; }
+
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify({ marks: marks })); } catch (e) {}
+  }
+
+  /* ---------- build the two lists ---------- */
+  var cols = document.getElementById("cols");
+
+  LISTS.forEach(function (list) {
+    var sec = document.createElement("section");
+    sec.innerHTML =
+      '<div class="sec-rule"></div>' +
+      '<div class="sec-top"><h2>' + list.title + '</h2>' +
+      '<span class="sec-count" id="count-' + list.id + '"></span></div>' +
+      '<p class="sec-sub">' + list.sub + '</p>';
+
+    var ul = document.createElement("ul");
+    ul.className = "list";
+
+    list.items.forEach(function (item) {
+      var li = document.createElement("li");
+      li.className = "chit";
+      li.dataset.item = item.id;
+      li.innerHTML =
+        '<div class="row">' +
+          '<span class="well"><svg viewBox="0 0 48 48" aria-hidden="true"><use href="#i-' + item.id + '"></use></svg></span>' +
+          '<span class="name" id="n-' + item.id + '">' + item.name + '</span>' +
+        '</div>' +
+        '<div class="acts" role="group" aria-labelledby="n-' + item.id + '">' +
+          '<button class="act enough" type="button" data-mark="enough" aria-pressed="false">Enough left</button>' +
+          '<button class="act out" type="button" data-mark="out" aria-pressed="false">Out of stock</button>' +
+          '<button class="act low" type="button" data-mark="low" aria-pressed="false">Maybe need more</button>' +
+        '</div>';
+      ul.appendChild(li);
+    });
+
+    sec.appendChild(ul);
+    cols.appendChild(sec);
+  });
+
+  /* ---------- paint state ---------- */
+  function paint() {
+    var flaggedAll = 0, leftAll = 0;
+
+    LISTS.forEach(function (list) {
+      var flagged = 0, left = 0;
+
+      list.items.forEach(function (item) {
+        var li = cols.querySelector('.chit[data-item="' + item.id + '"]');
+        var state = marks[item.id] || "";
+        li.dataset.state = state || "todo";
+        li.querySelectorAll(".act").forEach(function (b) {
+          b.setAttribute("aria-pressed", b.dataset.mark === state ? "true" : "false");
+        });
+        if (state === "out" || state === "low") flagged++;
+        if (!state) left++;
+      });
+
+      flaggedAll += flagged;
+      leftAll += left;
+
+      var badge = document.getElementById("count-" + list.id);
+      if (left > 0) {
+        badge.textContent = left + " LEFT TO CHECK";
+        badge.dataset.zero = "true";
+      } else if (flagged > 0) {
+        badge.textContent = flagged + " TO REPORT";
+        badge.dataset.zero = "false";
+      } else {
+        badge.textContent = "ALL FINE";
+        badge.dataset.zero = "true";
+      }
+    });
+
+    var tally = document.getElementById("tally");
+    var go = document.getElementById("write");
+
+    if (leftAll > 0) {
+      tally.innerHTML = "<b>" + leftAll + "</b> of " + TOTAL + " still to check";
+      go.dataset.ready = "false";
+      go.textContent = "Show what's left";
+    } else if (flaggedAll === 0) {
+      tally.innerHTML = "All " + TOTAL + " checked · nothing short";
+      go.dataset.ready = "true";
+      go.textContent = "Write the message";
+    } else {
+      tally.innerHTML = "<b>" + flaggedAll + "</b> " + (flaggedAll === 1 ? "item" : "items") + " to report";
+      go.dataset.ready = "true";
+      go.textContent = "Write the message";
+    }
+  }
+
+  /* ---------- interaction ---------- */
+  cols.addEventListener("click", function (ev) {
+    var li = ev.target.closest(".chit");
+    if (!li) return;
+    var id = li.dataset.item;
+
+    var act = ev.target.closest(".act");
+    if (act) {
+      var want = act.dataset.mark;
+      marks[id] = marks[id] === want ? "" : want;
+      if (marks[id] === want) {
+        act.classList.remove("landed");
+        void act.offsetWidth;
+        act.classList.add("landed");
+      }
+      save(); paint();
+    }
+  });
+
+  /* ---------- the message ---------- */
+  function stamp() {
+    var d = new Date();
+    var day = new Intl.DateTimeFormat("en-GB", { weekday:"short", day:"numeric", month:"short", year:"numeric" }).format(d);
+    var time = new Intl.DateTimeFormat("en-GB", { hour:"2-digit", minute:"2-digit", hour12:false }).format(d);
+    return day + ", " + time;
+  }
+
+  /* each list is its own message, complete on its own so it can be sent alone */
+  function buildFor(list) {
+    var lines = ["BOMBAY — " + list.reportTitle, stamp(), ""];
+
+    var flagged = list.items.filter(function (it) {
+      return marks[it.id] === "out" || marks[it.id] === "low";
+    }).sort(function (a, b) {
+      return (marks[a.id] === "out" ? 0 : 1) - (marks[b.id] === "out" ? 0 : 1);
+    });
+
+    if (!flagged.length) {
+      lines.push("Nothing to report.");
+    } else {
+      flagged.forEach(function (it) {
+        lines.push("• " + it.name + " — " + WORDS[marks[it.id]]);
+      });
+    }
+
+    return lines.join("\n");
+  }
+
+  var sheet = document.getElementById("sheet");
+  var said = document.getElementById("said");
+
+  function clearTips() {
+    LISTS.forEach(function (l) { document.getElementById("tip-" + l.id).textContent = ""; });
+  }
+
+  LISTS.forEach(function (list) {
+    var btn = document.getElementById("copy-" + list.id);
+    var pre = document.getElementById("rep-" + list.id);
+    var tip = document.getElementById("tip-" + list.id);
+    var timer;
+
+    function show(msg) {
+      clearTimeout(timer);
+      tip.textContent = "";
+      requestAnimationFrame(function () { tip.textContent = msg; });
+      timer = setTimeout(function () { tip.textContent = ""; }, 2500);
+    }
+
+    btn.addEventListener("click", function () {
+      function fallback() {
+        try {
+          var r = document.createRange();
+          r.selectNodeContents(pre);
+          var s = window.getSelection();
+          s.removeAllRanges();
+          s.addRange(r);
+          show("Selected — press Ctrl+C");
+        } catch (e) {
+          show("Select the text to copy");
+        }
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(pre.textContent).then(function () { show("Copied"); }, fallback);
+      } else {
+        fallback();
+      }
+    });
+  });
+
+  document.getElementById("write").addEventListener("click", function () {
+    /* every item must be answered before the message exists */
+    var pending = cols.querySelector('.chit[data-state="todo"]');
+    if (pending) {
+      pending.scrollIntoView({ block: "center", behavior: CALM ? "auto" : "smooth" });
+      pending.classList.remove("nudge");
+      void pending.offsetWidth;
+      pending.classList.add("nudge");
+      return;
+    }
+
+    LISTS.forEach(function (list) {
+      document.getElementById("rep-" + list.id).textContent = buildFor(list);
+    });
+    clearTips();
+    said.textContent = "";
+    resetArmed = false;
+    document.getElementById("reset").textContent = "Start a new check";
+    if (typeof sheet.showModal === "function") sheet.showModal();
+  });
+
+  document.getElementById("close").addEventListener("click", function () { sheet.close(); });
+
+  var resetArmed = false;
+  var resetBtn = document.getElementById("reset");
+  var resetTimer;
+  resetBtn.addEventListener("click", function () {
+    if (!resetArmed) {
+      resetArmed = true;
+      resetBtn.textContent = "Tap again to clear";
+      said.textContent = "This clears every tick and report.";
+      clearTimeout(resetTimer);
+      resetTimer = setTimeout(function () {
+        resetArmed = false;
+        resetBtn.textContent = "Start a new check";
+        said.textContent = "";
+      }, 4000);
+      return;
+    }
+    clearTimeout(resetTimer);
+    resetArmed = false;
+    marks = {};
+    save();
+    paint();
+    resetBtn.textContent = "Start a new check";
+    sheet.close();
+  });
+
+  paint();
+})();
+</script>
+<script>
+if ("serviceWorker" in navigator) {
+  addEventListener("load", function () {
+    navigator.serviceWorker.register("./sw.js").catch(function () {});
+  });
+}
+</script>
+</body>
+</html>
