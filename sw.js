@@ -1,5 +1,5 @@
 /* Offline cache. The kitchen wifi is not the thing this should depend on. */
-var CACHE = "bombay-kitchen-v6";
+var CACHE = "bombay-kitchen-v7";
 var CORE = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png"];
 
 self.addEventListener("install", function (e) {

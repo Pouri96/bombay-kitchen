@@ -103,6 +103,19 @@ p{text-wrap:pretty;margin:0}
   text-align:center;
   box-shadow:inset 0 0 0 1px rgba(185,135,59,.3);
 }
+.refresh{
+  display:flex;margin:-.35rem -.1rem .5rem auto;
+  align-items:center;align-items:center;gap:.4rem;
+  min-height:44px;padding:0 .85rem;
+  background:transparent;color:var(--brass);
+  border:1.5px solid var(--brass);border-radius:999px;
+  font:700 .78rem/1 var(--body);letter-spacing:.08em;cursor:pointer;
+}
+.refresh:hover{background:rgba(185,135,59,.18)}
+.refresh svg{width:18px;height:18px;display:block}
+.refresh.busy svg{animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.refresh.busy svg{animation:none}}
 .sign h1{
   font:400 clamp(2.1rem,11vw,3.4rem)/.95 var(--display);
   color:var(--marigold);
@@ -734,6 +747,10 @@ dialog::backdrop{background:rgba(4,22,19,.72)}
 
 <div class="wrap">
   <header class="sign">
+    <button class="refresh" id="refresh" type="button" aria-label="Refresh to get the latest version">
+      <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4v5h-5"/></svg>
+      Refresh
+    </button>
     <h1>BOMBAY</h1>
     <p class="tag">Kitchen check</p>
   </header>
@@ -852,6 +869,18 @@ dialog::backdrop{background:rgba(4,22,19,.72)}
   function save() {
     try { localStorage.setItem(KEY, JSON.stringify({ marks: marks })); } catch (e) {}
   }
+
+  /* ---------- refresh: drop cached copies, reload the latest (checks are kept) ---------- */
+  document.getElementById("refresh").addEventListener("click", function () {
+    this.classList.add("busy");
+    var done = function () { location.reload(); };
+    var jobs = [];
+    try {
+      if (window.caches) jobs.push(caches.keys().then(function (ks) { return Promise.all(ks.map(function (k) { return caches.delete(k); })); }));
+      if (navigator.serviceWorker) jobs.push(navigator.serviceWorker.getRegistrations().then(function (rs) { return Promise.all(rs.map(function (r) { return r.unregister(); })); }));
+    } catch (e) {}
+    Promise.all(jobs).then(done, done);
+  });
 
   /* ---------- build the two lists ---------- */
   var cols = document.getElementById("cols");
