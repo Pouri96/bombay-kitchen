@@ -18,7 +18,7 @@ Each item takes one of three answers:
 | Out of stock | None left, needs ordering or cooking |
 | Maybe need more | Running low, worth topping up |
 
-All 17 items must be answered before the message can be written. Rows you have not
+All 39 items must be answered before the message can be written. Rows you have not
 answered yet carry a dashed edge so they are easy to spot while scrolling.
 
 The message box then holds two separate messages, each with its own copy button, so
