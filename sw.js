@@ -1,5 +1,5 @@
 /* Offline cache. The kitchen wifi is not the thing this should depend on. */
-var CACHE = "bombay-kitchen-v5";
+var CACHE = "bombay-kitchen-v6";
 var CORE = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png"];
 
 self.addEventListener("install", function (e) {
@@ -25,6 +25,17 @@ self.addEventListener("activate", function (e) {
    Fonts are picked up on the first online visit and served from cache after that. */
 self.addEventListener("fetch", function (e) {
   if (e.request.method !== "GET") return;
+  /* Pages: network first so updates show up straight away, cache when offline. */
+  if (e.request.mode === "navigate") {
+    e.respondWith(
+      fetch(e.request).then(function (res) {
+        var copy = res.clone();
+        caches.open(CACHE).then(function (c) { c.put("./index.html", copy); });
+        return res;
+      }).catch(function () { return caches.match("./index.html"); })
+    );
+    return;
+  }
   e.respondWith(
     caches.match(e.request).then(function (hit) {
       if (hit) return hit;
