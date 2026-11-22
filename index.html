@@ -747,7 +747,7 @@ dialog::backdrop{background:rgba(4,22,19,.72)}
 
 <div class="wrap">
   <header class="sign">
-    <button class="refresh" id="refresh" type="button" aria-label="Refresh to get the latest version">
+    <button class="refresh" id="refresh" type="button" aria-label="Refresh and clear every answer">
       <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4v5h-5"/></svg>
       Refresh
     </button>
@@ -870,9 +870,11 @@ dialog::backdrop{background:rgba(4,22,19,.72)}
     try { localStorage.setItem(KEY, JSON.stringify({ marks: marks })); } catch (e) {}
   }
 
-  /* ---------- refresh: drop cached copies, reload the latest (checks are kept) ---------- */
+  /* ---------- refresh: drop cached copies, reload the latest and clear every answer ---------- */
   document.getElementById("refresh").addEventListener("click", function () {
     this.classList.add("busy");
+    marks = {};
+    try { localStorage.removeItem(KEY); } catch (e) {}
     var done = function () { location.reload(); };
     var jobs = [];
     try {
