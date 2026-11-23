@@ -103,9 +103,10 @@ p{text-wrap:pretty;margin:0}
   text-align:center;
   box-shadow:inset 0 0 0 1px rgba(185,135,59,.3);
 }
+.refresh-wrap{display:flex;justify-content:center;margin-top:1rem}
 .refresh{
-  display:flex;margin:-.35rem -.1rem .5rem auto;
-  align-items:center;align-items:center;gap:.4rem;
+  display:inline-flex;
+  align-items:center;gap:.4rem;
   min-height:44px;padding:0 .85rem;
   background:transparent;color:var(--brass);
   border:1.5px solid var(--brass);border-radius:999px;
@@ -747,13 +748,16 @@ dialog::backdrop{background:rgba(4,22,19,.72)}
 
 <div class="wrap">
   <header class="sign">
+    <h1>BOMBAY</h1>
+    <p class="tag">Kitchen check</p>
+  </header>
+
+  <div class="refresh-wrap">
     <button class="refresh" id="refresh" type="button" aria-label="Refresh and clear every answer">
       <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4v5h-5"/></svg>
       Refresh
     </button>
-    <h1>BOMBAY</h1>
-    <p class="tag">Kitchen check</p>
-  </header>
+  </div>
 
   <main class="cols" id="cols"></main>
 </div>
@@ -819,8 +823,8 @@ dialog::backdrop{background:rgba(4,22,19,.72)}
         {id:"chopped-spring-onion",name:"Chopped Spring Onion"},
         {id:"chopped-carrot",      name:"Chopped Carrot"},
         {id:"chopped-cucumber",    name:"Chopped Cucumber"},
-        {id:"ginger-paste",        name:"Ginger Paste"},
         {id:"garlic-paste",        name:"Garlic Paste"},
+        {id:"ginger-paste",        name:"Ginger Paste"},
         {id:"prawn-curry",         name:"Prawn Curry"},
         {id:"prawn-chilli",        name:"Prawn Chilli"},
         {id:"chicken-chilli",      name:"Chicken Chilli"},
